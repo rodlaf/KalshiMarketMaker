@@ -5,7 +5,12 @@ This project implements a market making algorithm for Kalshi markets, capable of
 ## Local Setup
 
 1. Clone the repository
-2. Install dependencies:
+2. Create and activate a virtual environment:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   ```
+3. Install dependencies:
    ```
    pip install -r requirements.txt
    ```
