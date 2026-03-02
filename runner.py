@@ -14,8 +14,8 @@ def load_config(config_file):
 
 def create_api(api_config, logger):
     return KalshiTradingAPI(
-        email=os.getenv("KALSHI_EMAIL"),
-        password=os.getenv("KALSHI_PASSWORD"),
+        api_key_id=os.getenv("KALSHI_API_KEY_ID"),
+        private_key_path=os.getenv("KALSHI_PRIVATE_KEY_PATH"),
         market_ticker=api_config['market_ticker'],
         base_url=os.getenv("KALSHI_BASE_URL"),
         logger=logger,
@@ -74,9 +74,6 @@ def run_strategy(config_name: str, config: Dict):
         logger.info("Market maker stopped by user")
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
-    finally:
-        # Ensure logout happens even if an exception occurs
-        api.logout()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Kalshi Market Making Algorithm")

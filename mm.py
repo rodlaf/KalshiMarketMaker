@@ -1,10 +1,18 @@
 import abc
+import base64
+import math
 import time
+import uuid
 from typing import Dict, List, Tuple
+from urllib.parse import urlparse
+
 import requests
 import logging
-import uuid
-import math
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+
 
 class AbstractTradingAPI(abc.ABC):
     @abc.abstractmethod
@@ -30,44 +38,39 @@ class AbstractTradingAPI(abc.ABC):
 class KalshiTradingAPI(AbstractTradingAPI):
     def __init__(
         self,
-        email: str,
-        password: str,
+        api_key_id: str,
+        private_key_path: str,
         market_ticker: str,
         base_url: str,
         logger: logging.Logger,
     ):
-        self.email = email
-        self.password = password
+        self.api_key_id = api_key_id
         self.market_ticker = market_ticker
-        self.token = None
-        self.member_id = None
         self.logger = logger
         self.base_url = base_url
-        self.login()
+        self.base_path = urlparse(base_url).path
 
-    def login(self):
-        url = f"{self.base_url}/login"
-        data = {"email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        response.raise_for_status()
-        result = response.json()
-        self.token = result["token"]
-        self.member_id = result.get("member_id")
-        self.logger.info("Successfully logged in")
+        with open(private_key_path, "rb") as f:
+            self.private_key = serialization.load_pem_private_key(
+                f.read(), password=None, backend=default_backend()
+            )
+        self.logger.info("RSA private key loaded successfully")
 
-    def logout(self):
-        if self.token:
-            url = f"{self.base_url}/logout"
-            headers = self.get_headers()
-            response = requests.post(url, headers=headers)
-            response.raise_for_status()
-            self.token = None
-            self.member_id = None
-            self.logger.info("Successfully logged out")
-
-    def get_headers(self):
+    def _get_signed_headers(self, method: str, path: str) -> Dict[str, str]:
+        timestamp_ms = str(int(time.time() * 1000))
+        message = (timestamp_ms + method.upper() + self.base_path + path).encode("utf-8")
+        signature = self.private_key.sign(
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.DIGEST_LENGTH,
+            ),
+            hashes.SHA256(),
+        )
         return {
-            "Authorization": f"Bearer {self.token}",
+            "KALSHI-ACCESS-KEY": self.api_key_id,
+            "KALSHI-ACCESS-TIMESTAMP": timestamp_ms,
+            "KALSHI-ACCESS-SIGNATURE": base64.b64encode(signature).decode("utf-8"),
             "Content-Type": "application/json",
         }
 
@@ -75,7 +78,7 @@ class KalshiTradingAPI(AbstractTradingAPI):
         self, method: str, path: str, params: Dict = None, data: Dict = None
     ):
         url = f"{self.base_url}{path}"
-        headers = self.get_headers()
+        headers = self._get_signed_headers(method, path)
 
         try:
             response = requests.request(
@@ -119,7 +122,7 @@ class KalshiTradingAPI(AbstractTradingAPI):
         yes_ask = float(data["market"]["yes_ask"]) / 100
         no_bid = float(data["market"]["no_bid"]) / 100
         no_ask = float(data["market"]["no_ask"]) / 100
-        
+
         yes_mid_price = round((yes_bid + yes_ask) / 2, 2)
         no_mid_price = round((no_bid + no_ask) / 2, 2)
 
@@ -233,20 +236,20 @@ class AvellanedaMarketMaker:
     def calculate_asymmetric_quotes(self, mid_price: float, inventory: int, t: float) -> Tuple[float, float]:
         reservation_price = self.calculate_reservation_price(mid_price, inventory, t)
         base_spread = self.calculate_optimal_spread(t, inventory)
-        
+
         position_ratio = inventory / self.max_position
         spread_adjustment = base_spread * abs(position_ratio) * 3
-        
+
         if inventory > 0:
             bid_spread = base_spread / 2 + spread_adjustment
             ask_spread = max(base_spread / 2 - spread_adjustment, self.min_spread / 2)
         else:
             bid_spread = max(base_spread / 2 - spread_adjustment, self.min_spread / 2)
             ask_spread = base_spread / 2 + spread_adjustment
-        
+
         bid_price = max(0, min(mid_price, reservation_price - bid_spread))
         ask_price = min(1, max(mid_price, reservation_price + ask_spread))
-        
+
         return bid_price, ask_price
 
     def calculate_reservation_price(self, mid_price: float, inventory: int, t: float) -> float:
@@ -256,7 +259,7 @@ class AvellanedaMarketMaker:
 
     def calculate_optimal_spread(self, t: float, inventory: int) -> float:
         dynamic_gamma = self.calculate_dynamic_gamma(inventory)
-        base_spread = (dynamic_gamma * (self.sigma**2) * (1 - t/self.T) + 
+        base_spread = (dynamic_gamma * (self.sigma**2) * (1 - t/self.T) +
                        (2 / dynamic_gamma) * math.log(1 + (dynamic_gamma / self.k)))
         position_ratio = abs(inventory) / self.max_position
         spread_adjustment = 1 - (position_ratio ** 2)
@@ -269,14 +272,14 @@ class AvellanedaMarketMaker:
     def calculate_order_sizes(self, inventory: int) -> Tuple[int, int]:
         remaining_capacity = self.max_position - abs(inventory)
         buffer_size = int(self.max_position * self.position_limit_buffer)
-        
+
         if inventory > 0:
             buy_size = max(1, min(buffer_size, remaining_capacity))
             sell_size = max(1, self.max_position)
         else:
             buy_size = max(1, self.max_position)
             sell_size = max(1, min(buffer_size, remaining_capacity))
-        
+
         return buy_size, sell_size
 
     def manage_orders(self, bid_price: float, ask_price: float, buy_size: int, sell_size: int):
