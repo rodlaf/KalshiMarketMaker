@@ -38,12 +38,14 @@ def create_market_maker(mm_config, api, logger):
     )
 
 def run_strategy(config_name: str, config: Dict):
+    os.makedirs("runs", exist_ok=True)
+
     # Create a logger for this specific strategy
     logger = logging.getLogger(f"Strategy_{config_name}")
     logger.setLevel(config.get('log_level', 'INFO'))
 
     # Create file handler
-    fh = logging.FileHandler(f"{config_name}.log")
+    fh = logging.FileHandler(os.path.join("runs", f"{config_name}.log"))
     fh.setLevel(config.get('log_level', 'INFO'))
     
     # Create console handler

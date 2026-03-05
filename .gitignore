@@ -1,18 +1,15 @@
 .env
-
 *.log
-
-__pycache__/
-
 *.txt
-
 .venv/
 secrets/
+runs/
 
 # Python bytecode and caches
 *.py[cod]
 *$py.class
 .mypy_cache/
+__pycache__/
 .pytest_cache/
 .ruff_cache/
 .pyre/
