@@ -1,10 +1,15 @@
 import abc
 import time
+import base64
 from typing import Dict, List, Tuple
 import requests
 import logging
 import uuid
 import math
+from urllib.parse import urlparse
+
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
 class AbstractTradingAPI(abc.ABC):
     @abc.abstractmethod
@@ -30,44 +35,47 @@ class AbstractTradingAPI(abc.ABC):
 class KalshiTradingAPI(AbstractTradingAPI):
     def __init__(
         self,
-        email: str,
-        password: str,
+        api_key_id: str,
+        private_key_path: str,
         market_ticker: str,
         base_url: str,
         logger: logging.Logger,
     ):
-        self.email = email
-        self.password = password
+        self.api_key_id = api_key_id
+        self.private_key_path = private_key_path
         self.market_ticker = market_ticker
-        self.token = None
-        self.member_id = None
         self.logger = logger
-        self.base_url = base_url
-        self.login()
+        self.base_url = base_url.rstrip("/")
+        self.private_key = self.load_private_key()
+        self.logger.info("Kalshi API client initialized with API key auth")
 
-    def login(self):
-        url = f"{self.base_url}/login"
-        data = {"email": self.email, "password": self.password}
-        response = requests.post(url, json=data)
-        response.raise_for_status()
-        result = response.json()
-        self.token = result["token"]
-        self.member_id = result.get("member_id")
-        self.logger.info("Successfully logged in")
+    def load_private_key(self):
+        with open(self.private_key_path, "rb") as f:
+            return serialization.load_pem_private_key(f.read(), password=None)
 
     def logout(self):
-        if self.token:
-            url = f"{self.base_url}/logout"
-            headers = self.get_headers()
-            response = requests.post(url, headers=headers)
-            response.raise_for_status()
-            self.token = None
-            self.member_id = None
-            self.logger.info("Successfully logged out")
+        return None
 
-    def get_headers(self):
+    def _create_signature(self, timestamp: str, method: str, path: str) -> str:
+        sign_path = path.split("?")[0]
+        message = f"{timestamp}{method.upper()}{sign_path}".encode("utf-8")
+        signature = self.private_key.sign(
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.DIGEST_LENGTH,
+            ),
+            hashes.SHA256(),
+        )
+        return base64.b64encode(signature).decode("utf-8")
+
+    def get_headers(self, method: str, path: str):
+        timestamp = str(int(time.time() * 1000))
+        signature = self._create_signature(timestamp, method, path)
         return {
-            "Authorization": f"Bearer {self.token}",
+            "KALSHI-ACCESS-KEY": self.api_key_id,
+            "KALSHI-ACCESS-SIGNATURE": signature,
+            "KALSHI-ACCESS-TIMESTAMP": timestamp,
             "Content-Type": "application/json",
         }
 
@@ -75,7 +83,8 @@ class KalshiTradingAPI(AbstractTradingAPI):
         self, method: str, path: str, params: Dict = None, data: Dict = None
     ):
         url = f"{self.base_url}{path}"
-        headers = self.get_headers()
+        parsed_path = urlparse(url).path
+        headers = self.get_headers(method, parsed_path)
 
         try:
             response = requests.request(

@@ -5,3 +5,6 @@
 __pycache__/
 
 *.txt
+
+.venv/
+secrets/
