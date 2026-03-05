@@ -16,6 +16,13 @@ def compute_spread_cents(market: Dict) -> float:
     return yes_ask - yes_bid
 
 
+def is_supported_binary_market(market: Dict) -> bool:
+    market_type = str(market.get("market_type", "binary")).lower()
+    has_mve_collection = bool(market.get("mve_collection_ticker"))
+    has_mve_legs = bool(market.get("mve_selected_legs"))
+    return market_type == "binary" and not has_mve_collection and not has_mve_legs
+
+
 def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[str, float, float, float]]:
     min_volume_24h = safe_float(selector_cfg.get("min_volume_24h", 100))
     min_spread_cents = safe_float(selector_cfg.get("min_spread_cents", 1))
@@ -25,6 +32,9 @@ def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[st
 
     candidates = []
     for market in markets:
+        if not is_supported_binary_market(market):
+            continue
+
         ticker = market.get("ticker")
         if not ticker:
             continue

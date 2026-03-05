@@ -1,13 +1,18 @@
 dynamic:
   log_level: INFO
+  risk:
+    max_global_contracts: 20
+    max_contracts_per_market: 3
+    reserve_contracts_buffer: 2
   market_selector:
-    top_n: 50
+    top_n: 6
     refresh_seconds: 45
     worker_shutdown_timeout_seconds: 15
-    min_volume_24h: 0
+    min_volume_24h: 500
     min_spread_cents: 2
-    volume_weight: 0.90
-    spread_weight: 0.10
+    volume_weight: 0.35
+    spread_weight: 0.65
+    mve_filter: exclude
     page_limit: 250
     max_pages: 5
     max_markets: 1250

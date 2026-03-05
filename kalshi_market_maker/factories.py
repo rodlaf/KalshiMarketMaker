@@ -20,7 +20,9 @@ def create_api(api_config: Dict, logger, market_ticker: str | None = None) -> Ka
     )
 
 
-def create_market_maker(mm_config: Dict, api, logger) -> AvellanedaMarketMaker:
+def create_market_maker(mm_config: Dict, api, logger, risk_config: Dict | None = None, shared_risk_state: Dict | None = None) -> AvellanedaMarketMaker:
+    risk_config = risk_config or {}
+
     return AvellanedaMarketMaker(
         logger=logger,
         api=api,
@@ -34,4 +36,8 @@ def create_market_maker(mm_config: Dict, api, logger) -> AvellanedaMarketMaker:
         position_limit_buffer=mm_config.get("position_limit_buffer", 0.1),
         inventory_skew_factor=mm_config.get("inventory_skew_factor", 0.01),
         trade_side=mm_config.get("trade_side", "yes"),
+        max_global_contracts=risk_config.get("max_global_contracts"),
+        max_contracts_per_market=risk_config.get("max_contracts_per_market"),
+        reserve_contracts_buffer=risk_config.get("reserve_contracts_buffer", 0),
+        shared_risk_state=shared_risk_state,
     )

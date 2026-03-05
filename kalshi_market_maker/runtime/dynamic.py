@@ -18,6 +18,7 @@ def run_dynamic_strategy(dynamic_config: Dict):
     selector_cfg = dynamic_config.get("market_selector", {})
     refresh_seconds = safe_float(selector_cfg.get("refresh_seconds", 20), 20.0)
     series_ticker = selector_cfg.get("series_ticker")
+    mve_filter = selector_cfg.get("mve_filter", "exclude")
     page_limit = int(selector_cfg.get("page_limit", 250))
     max_pages = int(selector_cfg.get("max_pages", 5))
     max_markets = int(selector_cfg.get("max_markets", 1250))
@@ -26,6 +27,7 @@ def run_dynamic_strategy(dynamic_config: Dict):
     active_workers: Dict[str, Tuple[threading.Event, object]] = {}
     max_workers = int(selector_cfg.get("top_n", 8)) + 1
     last_selected_tickers: List[str] = []
+    shared_risk_state = {"active_markets": 1}
     selector_backoff_seconds = 5.0
     max_selector_backoff_seconds = 120.0
 
@@ -38,6 +40,7 @@ def run_dynamic_strategy(dynamic_config: Dict):
                 try:
                     markets = selector_api.list_all_open_markets(
                         series_ticker=series_ticker,
+                        mve_filter=mve_filter,
                         page_limit=page_limit,
                         max_pages=max_pages,
                         max_markets=max_markets,
@@ -66,6 +69,7 @@ def run_dynamic_strategy(dynamic_config: Dict):
                     time.sleep(selector_backoff_seconds)
 
                 selected_set = set(selected_tickers)
+                shared_risk_state["active_markets"] = max(1, len(selected_tickers))
                 logger.info(f"Selector found {len(markets)} open markets; selected: {selected_tickers}")
 
                 for ticker in list(active_workers.keys()):
@@ -90,7 +94,13 @@ def run_dynamic_strategy(dynamic_config: Dict):
                     if ticker not in active_workers:
                         logger.info(f"Starting worker for selected ticker {ticker}")
                         stop_event = threading.Event()
-                        future = executor.submit(run_market_worker, ticker, dynamic_config, stop_event)
+                        future = executor.submit(
+                            run_market_worker,
+                            ticker,
+                            dynamic_config,
+                            stop_event,
+                            shared_risk_state,
+                        )
                         active_workers[ticker] = (stop_event, future)
 
                 time.sleep(refresh_seconds)

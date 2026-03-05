@@ -8,6 +8,8 @@ The runtime is a two-step loop:
 
 1. Market selection
    - Pull open markets from Kalshi.
+   - Exclude multivariate/combo markets (`mve_filter=exclude`).
+   - Enforce local hard filter to binary-only markets.
    - Filter using `min_volume_24h` and `min_spread_cents`.
    - Score candidates with weighted normalized volume and spread.
    - Keep the top `top_n` markets.
@@ -15,6 +17,8 @@ The runtime is a two-step loop:
 2. Market making
    - Run one Avellaneda-Stoikov worker per selected market.
    - Each worker computes reservation price, asymmetric quotes, and order sizes.
+   - Inventory risk aversion increases as inventory approaches limits.
+   - New risk accumulation is blocked when global portfolio cap is reached.
    - Worker manages resting orders on each loop interval.
 
 ## Lifecycle and Safety
@@ -26,6 +30,7 @@ The runtime is a two-step loop:
   - cancel all resting orders for that ticker,
   - verify cleanup before removing worker state.
 - Selector and API requests use retry/backoff handling for transient and rate-limit errors.
+- Portfolio controls enforce global and per-market contract caps across all active workers.
 
 ## Local Setup
 
@@ -56,14 +61,19 @@ The runtime is a two-step loop:
 ```yaml
 dynamic:
   log_level: INFO
+   risk:
+      max_global_contracts: 20
+      max_contracts_per_market: 3
+      reserve_contracts_buffer: 2
   market_selector:
-    top_n: 3
+      top_n: 6
     refresh_seconds: 45
     worker_shutdown_timeout_seconds: 15
     min_volume_24h: 500
     min_spread_cents: 2
     volume_weight: 0.35
     spread_weight: 0.65
+      mve_filter: exclude
     page_limit: 250
     max_pages: 5
     max_markets: 1250

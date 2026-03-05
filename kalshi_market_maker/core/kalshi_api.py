@@ -281,6 +281,7 @@ class KalshiTradingAPI(AbstractTradingAPI):
         limit: int = 1000,
         cursor: str = None,
         series_ticker: str = None,
+        mve_filter: str = "exclude",
     ) -> Dict:
         path = "/markets"
         params = {"status": status, "limit": limit}
@@ -288,11 +289,14 @@ class KalshiTradingAPI(AbstractTradingAPI):
             params["cursor"] = cursor
         if series_ticker:
             params["series_ticker"] = series_ticker
+        if mve_filter:
+            params["mve_filter"] = mve_filter
         return self.make_request("GET", path, params=params)
 
     def list_all_open_markets(
         self,
         series_ticker: str = None,
+        mve_filter: str = "exclude",
         page_limit: int = 250,
         max_pages: int = 5,
         max_markets: int = 1250,
@@ -311,6 +315,7 @@ class KalshiTradingAPI(AbstractTradingAPI):
                 limit=safe_page_limit,
                 cursor=cursor,
                 series_ticker=series_ticker,
+                mve_filter=mve_filter,
             )
             batch = response.get("markets", [])
             markets.extend(batch)
