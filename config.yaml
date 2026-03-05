@@ -5,7 +5,7 @@ dynamic:
     max_contracts_per_market: 3
     reserve_contracts_buffer: 2
   market_selector:
-    top_n: 6
+    top_n: 5
     refresh_seconds: 45
     worker_shutdown_timeout_seconds: 15
     min_volume_24h: 500
@@ -21,11 +21,11 @@ dynamic:
     max_position: 3
     order_expiration: 3600
     gamma: 0.2
-    k: 1.5
-    sigma: 0.001
+    k: 150.0
+    sigma: 0.10
     T: 28800
-    min_spread: 0.02
+    min_spread: 0.03
     position_limit_buffer: 0.05
-    inventory_skew_factor: 0.1
+    inventory_skew_factor: 0.001
     trade_side: "yes"
   dt: 5.0

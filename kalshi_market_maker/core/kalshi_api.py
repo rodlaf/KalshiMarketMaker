@@ -248,6 +248,20 @@ class KalshiTradingAPI(AbstractTradingAPI):
         page_limit: int = 200,
         max_pages: int = 20,
     ) -> List[Dict]:
+        return self.list_all_orders_by_status(
+            status="resting",
+            ticker=ticker,
+            page_limit=page_limit,
+            max_pages=max_pages,
+        )
+
+    def list_all_orders_by_status(
+        self,
+        status: str,
+        ticker: Optional[str] = None,
+        page_limit: int = 200,
+        max_pages: int = 20,
+    ) -> List[Dict]:
         orders: List[Dict] = []
         cursor = None
         pages = 0
@@ -257,7 +271,7 @@ class KalshiTradingAPI(AbstractTradingAPI):
 
         while True:
             path = "/portfolio/orders"
-            params = {"status": "resting", "limit": safe_page_limit}
+            params = {"status": status, "limit": safe_page_limit}
             if ticker:
                 params["ticker"] = ticker
             if cursor:

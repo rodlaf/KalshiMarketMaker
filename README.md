@@ -94,6 +94,21 @@ dynamic:
 
 ## Operations
 
+Realtime account dashboard (money, positions, resting orders):
+
+```bash
+kalshi-dashboard
+```
+
+Dashboard options:
+
+```bash
+kalshi-dashboard --refresh-seconds 1.5 --balance-every-n 10
+```
+
+Controls:
+- Press `q` to quit.
+
 Cancel resting orders across all markets:
 
 ```bash

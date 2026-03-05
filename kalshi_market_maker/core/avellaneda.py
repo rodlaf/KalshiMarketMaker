@@ -91,7 +91,7 @@ class AvellanedaMarketMaker:
 
     def calculate_reservation_price(self, mid_price: float, inventory: int, elapsed_time: float) -> float:
         dynamic_gamma = self.calculate_dynamic_gamma(inventory)
-        inventory_skew = inventory * self.inventory_skew_factor * mid_price
+        inventory_skew = -inventory * self.inventory_skew_factor * mid_price
         return mid_price + inventory_skew - inventory * dynamic_gamma * (self.sigma ** 2) * (1 - elapsed_time / self.T)
 
     def calculate_optimal_spread(self, elapsed_time: float, inventory: int) -> float:
@@ -104,7 +104,7 @@ class AvellanedaMarketMaker:
         effective_max_position = self.get_effective_max_position()
         position_ratio = min(1.0, abs(inventory) / effective_max_position)
         spread_multiplier = 1 + 2.0 * position_ratio
-        return max(base_spread * spread_multiplier * 0.01, self.min_spread)
+        return max(base_spread * spread_multiplier, self.min_spread)
 
     def calculate_dynamic_gamma(self, inventory: int) -> float:
         effective_max_position = self.get_effective_max_position()

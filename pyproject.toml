@@ -18,6 +18,7 @@ dependencies = [
 [project.scripts]
 kalshi-mm = "kalshi_market_maker.cli.mm:main"
 kalshi-cancel-all = "kalshi_market_maker.cli.cancel_all:main"
+kalshi-dashboard = "kalshi_market_maker.cli.dashboard:main"
 
 [tool.setuptools]
 

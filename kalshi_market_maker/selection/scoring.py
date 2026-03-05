@@ -18,9 +18,34 @@ def compute_spread_cents(market: Dict) -> float:
 
 def is_supported_binary_market(market: Dict) -> bool:
     market_type = str(market.get("market_type", "binary")).lower()
-    has_mve_collection = bool(market.get("mve_collection_ticker"))
-    has_mve_legs = bool(market.get("mve_selected_legs"))
-    return market_type == "binary" and not has_mve_collection and not has_mve_legs
+    ticker = str(market.get("ticker", ""))
+
+    # Reject non-binary markets (scalar, etc.)
+    if market_type != "binary":
+        return False
+
+    # Reject MVE (multivariate event) markets.
+    # The API's mve_filter=exclude SHOULD filter these, but KXMVE* markets
+    # have been observed slipping through. Multiple layers of defense:
+    #
+    # 1. Hard ticker-prefix gate: all MVE market tickers start with "KXMVE"
+    if ticker.upper().startswith("KXMVE"):
+        return False
+
+    # 2. API response fields: mve_collection_ticker / mve_selected_legs
+    #    (x-omitempty in the spec means absent when empty, present when set)
+    if market.get("mve_collection_ticker"):
+        return False
+    mve_legs = market.get("mve_selected_legs")
+    if mve_legs is not None and len(mve_legs) > 0:
+        return False
+
+    # 3. MVE combos use strike_type="functional" — reject those too
+    strike_type = str(market.get("strike_type", "")).lower()
+    if strike_type == "functional":
+        return False
+
+    return True
 
 
 def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[str, float, float, float]]:
@@ -69,7 +94,7 @@ def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[st
     ranked = []
     for market in candidates:
         volume_norm = normalize(market["volume_24h"], min_volume, max_volume)
-        spread_norm = normalize(market["spread_cents"], min_spread, max_spread)
+        spread_norm = 1.0 - normalize(market["spread_cents"], min_spread, max_spread)
         score = volume_weight * volume_norm + spread_weight * spread_norm
         ranked.append((market["ticker"], score, market["volume_24h"], market["spread_cents"]))
 
