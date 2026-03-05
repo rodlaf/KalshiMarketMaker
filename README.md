@@ -2,6 +2,8 @@
 
 Dynamic market-making bot for Kalshi with explicit safety controls and operational tooling.
 
+<img width="673" height="391" alt="Screenshot 2026-03-05 at 12 37 26 AM" src="https://github.com/user-attachments/assets/675477c1-f5cd-4e86-a44b-87d689b21037" />
+
 ## Algorithm
 
 The runtime is a two-step loop:
