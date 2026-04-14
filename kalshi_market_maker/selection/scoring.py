@@ -56,6 +56,7 @@ def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[st
     spread_weight = safe_float(selector_cfg.get("spread_weight", 0.5))
 
     candidates = []
+    fallback_candidates = []
     for market in markets:
         if not is_supported_binary_market(market):
             continue
@@ -66,18 +67,23 @@ def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[st
 
         volume_24h = safe_float(market.get("volume_24h", market.get("volume", 0)))
         spread_cents = compute_spread_cents(market)
+        if spread_cents < 0:
+            continue
+
+        candidate = {
+            "ticker": ticker,
+            "volume_24h": volume_24h,
+            "spread_cents": spread_cents,
+        }
+        fallback_candidates.append(candidate)
 
         if volume_24h < min_volume_24h or spread_cents < min_spread_cents:
             continue
 
-        candidates.append(
-            {
-                "ticker": ticker,
-                "volume_24h": volume_24h,
-                "spread_cents": spread_cents,
-            }
-        )
+        candidates.append(candidate)
 
+    if not candidates:
+        candidates = fallback_candidates
     if not candidates:
         return []
 
