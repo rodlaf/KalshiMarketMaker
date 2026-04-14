@@ -55,29 +55,36 @@ def select_top_markets(markets: List[Dict], selector_cfg: Dict) -> List[Tuple[st
     volume_weight = safe_float(selector_cfg.get("volume_weight", 0.5))
     spread_weight = safe_float(selector_cfg.get("spread_weight", 0.5))
 
-    candidates = []
-    for market in markets:
-        if not is_supported_binary_market(market):
-            continue
+    def collect_candidates(ignore_thresholds: bool) -> List[Dict]:
+        collected = []
+        for market in markets:
+            if not is_supported_binary_market(market):
+                continue
 
-        ticker = market.get("ticker")
-        if not ticker:
-            continue
+            ticker = market.get("ticker")
+            if not ticker:
+                continue
 
-        volume_24h = safe_float(market.get("volume_24h", market.get("volume", 0)))
-        spread_cents = compute_spread_cents(market)
+            volume_24h = safe_float(market.get("volume_24h", market.get("volume", 0)))
+            spread_cents = compute_spread_cents(market)
+            if spread_cents < 0:
+                continue
 
-        if volume_24h < min_volume_24h or spread_cents < min_spread_cents:
-            continue
+            if not ignore_thresholds and (volume_24h < min_volume_24h or spread_cents < min_spread_cents):
+                continue
 
-        candidates.append(
-            {
-                "ticker": ticker,
-                "volume_24h": volume_24h,
-                "spread_cents": spread_cents,
-            }
-        )
+            collected.append(
+                {
+                    "ticker": ticker,
+                    "volume_24h": volume_24h,
+                    "spread_cents": spread_cents,
+                }
+            )
+        return collected
 
+    candidates = collect_candidates(ignore_thresholds=False)
+    if not candidates:
+        candidates = collect_candidates(ignore_thresholds=True)
     if not candidates:
         return []
 

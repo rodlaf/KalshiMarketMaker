@@ -255,6 +255,25 @@ class TestMarketSelection:
             f"Liquid tight-spread market should rank first, got: {[t for t, *_ in ranked]}"
         )
 
+    def test_falls_back_when_strict_filters_eliminate_all_markets(self):
+        from kalshi_market_maker.selection.scoring import select_top_markets
+
+        markets = [
+            {"ticker": "A", "market_type": "binary", "volume_24h": 20, "yes_bid": 50, "yes_ask": 51},
+            {"ticker": "B", "market_type": "binary", "volume_24h": 30, "yes_bid": 50, "yes_ask": 52},
+        ]
+        cfg = {
+            "min_volume_24h": 500,
+            "min_spread_cents": 5,
+            "top_n": 2,
+            "volume_weight": 0.35,
+            "spread_weight": 0.65,
+        }
+        assert all(m["volume_24h"] < cfg["min_volume_24h"] for m in markets)
+        assert all((m["yes_ask"] - m["yes_bid"]) < cfg["min_spread_cents"] for m in markets)
+        ranked = select_top_markets(markets, cfg)
+        assert [t for t, *_ in ranked] == ["A", "B"]
+
 
 # ── MVE (Multivariate Event) Rejection Tests ─────────────────────────
 
