@@ -269,6 +269,8 @@ class TestMarketSelection:
             "volume_weight": 0.35,
             "spread_weight": 0.65,
         }
+        assert all(m["volume_24h"] < cfg["min_volume_24h"] for m in markets)
+        assert all((m["yes_ask"] - m["yes_bid"]) < cfg["min_spread_cents"] for m in markets)
         ranked = select_top_markets(markets, cfg)
         assert [t for t, *_ in ranked] == ["A", "B"]
 
